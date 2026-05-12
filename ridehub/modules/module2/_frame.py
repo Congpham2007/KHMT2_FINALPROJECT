@@ -4,6 +4,7 @@ from tkinter import ttk, messagebox
 import customtkinter as ctk
 
 from data.uber import get_db_connection
+from ui.main_ui import DateRangePicker
 from ._story import _StoryMixin
 from ._analytics import _AnalyticsMixin
 
@@ -19,6 +20,7 @@ class RideManagementFrame(_StoryMixin, _AnalyticsMixin, ctk.CTkFrame):
 
         self.setup_header()
         self.setup_f1_ui()
+        self._init_dates()
         self.setup_action_buttons()
         self.setup_f1_table()
 
@@ -54,6 +56,25 @@ class RideManagementFrame(_StoryMixin, _AnalyticsMixin, ctk.CTkFrame):
             self.stats["vtat_cao"] = cursor.fetchone()['c']
         except Exception as e:
             print("Stats error:", e)
+        finally:
+            conn.close()
+
+    def _init_dates(self):
+        """Load date range from DB for the picker defaults (like module 4)."""
+        conn = get_db_connection()
+        if not conn:
+            return
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT MIN(`Date`), MAX(`Date`) FROM rides")
+            min_date, max_date = cur.fetchone()
+            if min_date and max_date:
+                min_dt = datetime.datetime.strptime(str(min_date), "%Y-%m-%d")
+                max_dt = datetime.datetime.strptime(str(max_date), "%Y-%m-%d")
+                if hasattr(self, "date_picker") and self.date_picker:
+                    self.date_picker.set_range(min_dt.date(), max_dt.date())
+        except Exception:
+            pass
         finally:
             conn.close()
 
@@ -125,41 +146,15 @@ class RideManagementFrame(_StoryMixin, _AnalyticsMixin, ctk.CTkFrame):
             fg_color="white", text_color="black", state="readonly"
         ).pack(side="left", padx=5)
 
-        # Date start
-        date1_container = ctk.CTkFrame(
-            filter_frame, fg_color="white", corner_radius=6,
-            border_width=1, border_color="#e2e8f0"
+        today = datetime.datetime.now()
+        default_start = (today - datetime.timedelta(days=30)).date()
+        default_end = today.date()
+        self.date_picker = DateRangePicker(
+            filter_frame,
+            default_start=default_start,
+            default_end=default_end,
         )
-        date1_container.pack(side="left", padx=5)
-        self.date_start = ctk.CTkEntry(
-            date1_container, placeholder_text="mm/dd/yyyy",
-            width=95, border_width=0, fg_color="transparent", text_color="black"
-        )
-        self.date_start.pack(side="left", padx=(5, 0), pady=2)
-        cal_icon1 = ctk.CTkLabel(
-            date1_container, text="", text_color="#64748b", cursor="hand2"
-        )
-        cal_icon1.pack(side="left", padx=(0, 8))
-        cal_icon1.bind("<Button-1>", lambda e: self.open_calendar(self.date_start))
-        self.date_start.bind("<FocusOut>", self.auto_format_date)
-
-        # Date end
-        date2_container = ctk.CTkFrame(
-            filter_frame, fg_color="white", corner_radius=6,
-            border_width=1, border_color="#e2e8f0"
-        )
-        date2_container.pack(side="left", padx=5)
-        self.date_end = ctk.CTkEntry(
-            date2_container, placeholder_text="mm/dd/yyyy",
-            width=95, border_width=0, fg_color="transparent", text_color="black"
-        )
-        self.date_end.pack(side="left", padx=(5, 0), pady=2)
-        cal_icon2 = ctk.CTkLabel(
-            date2_container, text="", text_color="#64748b", cursor="hand2"
-        )
-        cal_icon2.pack(side="left", padx=(0, 8))
-        cal_icon2.bind("<Button-1>", lambda e: self.open_calendar(self.date_end))
-        self.date_end.bind("<FocusOut>", self.auto_format_date)
+        self.date_picker.pack(side="left", padx=5)
 
         # Filter & Reset buttons
         ctk.CTkButton(
@@ -175,88 +170,6 @@ class RideManagementFrame(_StoryMixin, _AnalyticsMixin, ctk.CTkFrame):
 
         self.bind("<Button-1>", lambda e: self.focus_set())
         filter_frame.bind("<Button-1>", lambda e: self.focus_set())
-
-    # ==========================================
-    # CALENDAR POPUP
-    # ==========================================
-    def open_calendar(self, entry_widget):
-        from tkcalendar import Calendar
-
-        if hasattr(self, "cal_popup") and self.cal_popup.winfo_exists():
-            self.cal_popup.destroy()
-
-        self.cal_popup = ctk.CTkToplevel(self)
-        self.cal_popup.overrideredirect(True)
-        self.cal_popup.attributes('-topmost', True)
-
-        x = entry_widget.winfo_rootx()
-        y = entry_widget.winfo_rooty() + entry_widget.winfo_height() + 2
-        self.cal_popup.geometry(f"250x220+{x}+{y}")
-
-        current_text = entry_widget.get().strip()
-        init_year = init_month = init_day = None
-
-        if current_text and current_text != "mm/dd/yyyy":
-            try:
-                d = datetime.datetime.strptime(current_text, "%m/%d/%Y")
-                init_year, init_month, init_day = d.year, d.month, d.day
-            except ValueError:
-                pass
-
-        cal_kwargs = {
-            "selectmode": 'day', "date_pattern": 'mm/dd/yyyy',
-            "showweeknumbers": False,
-            "background": "white", "foreground": "black",
-            "bordercolor": "#e2e8f0",
-            "headersbackground": "white", "headersforeground": "black",
-            "selectbackground": "#2563eb", "selectforeground": "white",
-            "normalbackground": "white", "normalforeground": "black",
-            "weekendbackground": "white", "weekendforeground": "black",
-            "othermonthbackground": "white", "othermonthforeground": "#cbd5e1"
-        }
-
-        if init_year and init_month and init_day:
-            cal = Calendar(
-                self.cal_popup,
-                year=init_year, month=init_month, day=init_day,
-                **cal_kwargs
-            )
-        else:
-            cal = Calendar(self.cal_popup, **cal_kwargs)
-
-        cal.pack(fill="both", expand=True)
-
-        def on_date_select(event):
-            entry_widget.delete(0, 'end')
-            entry_widget.insert(0, cal.get_date())
-            self.cal_popup.destroy()
-            self.winfo_toplevel().focus_set()
-
-        cal.bind("<<CalendarSelected>>", on_date_select)
-
-        def handle_focus_out(event):
-            def check_focus():
-                if (hasattr(self, "cal_popup") and
-                        self.cal_popup.winfo_exists()):
-                    focused_widget = self.focus_get()
-                    if (focused_widget is None or
-                            str(self.cal_popup) not in str(focused_widget)):
-                        self.cal_popup.destroy()
-            self.after(50, check_focus)
-
-        self.cal_popup.bind("<FocusOut>", handle_focus_out)
-        self.cal_popup.focus_set()
-
-    def auto_format_date(self, event):
-        entry = event.widget
-        text = entry.get().strip()
-        if text and text != "mm/dd/yyyy":
-            try:
-                valid_date = datetime.datetime.strptime(text, "%m/%d/%Y")
-                entry.delete(0, 'end')
-                entry.insert(0, valid_date.strftime("%m/%d/%Y"))
-            except ValueError:
-                pass
 
     # ==========================================
     # QUICK FILTERS + ACTION BUTTONS
@@ -431,8 +344,7 @@ class RideManagementFrame(_StoryMixin, _AnalyticsMixin, ctk.CTkFrame):
 
     def f1_reset_filters(self):
         self.search_entry.delete(0, 'end')
-        self.date_start.delete(0, 'end')
-        self.date_end.delete(0, 'end')
+        self.date_picker.set_range(None, None)
 
         self.status_var.set("All")
         self.vehicle_var.set("All")
@@ -442,8 +354,6 @@ class RideManagementFrame(_StoryMixin, _AnalyticsMixin, ctk.CTkFrame):
             btn.configure(border_width=1, font=("Arial", 13))
 
         self.search_entry.configure(placeholder_text=" Booking ID...")
-        self.date_start.configure(placeholder_text="mm/dd/yyyy")
-        self.date_end.configure(placeholder_text="mm/dd/yyyy")
 
         self.winfo_toplevel().focus_set()
         self.f1_load_data()
@@ -452,10 +362,6 @@ class RideManagementFrame(_StoryMixin, _AnalyticsMixin, ctk.CTkFrame):
         self.focus_set()
         if not self.search_entry.get().strip():
             self.search_entry.configure(placeholder_text=" Booking ID...")
-        if not self.date_start.get().strip():
-            self.date_start.configure(placeholder_text="mm/dd/yyyy")
-        if not self.date_end.get().strip():
-            self.date_end.configure(placeholder_text="mm/dd/yyyy")
 
         for item in self.table.get_children():
             self.table.delete(item)
@@ -490,24 +396,7 @@ class RideManagementFrame(_StoryMixin, _AnalyticsMixin, ctk.CTkFrame):
             params.append(self.vehicle_var.get())
 
         # 4. Date range
-        def parse_and_format_date(date_str, entry_widget):
-            if date_str and date_str != "mm/dd/yyyy":
-                try:
-                    d = datetime.datetime.strptime(date_str, "%m/%d/%Y")
-                    entry_widget.delete(0, 'end')
-                    entry_widget.insert(0, d.strftime("%m/%d/%Y"))
-                    return d.strftime("%Y-%m-%d")
-                except ValueError:
-                    return None
-            return None
-
-        sql_start = parse_and_format_date(
-            self.date_start.get().strip(), self.date_start
-        )
-        sql_end = parse_and_format_date(
-            self.date_end.get().strip(), self.date_end
-        )
-
+        sql_start, sql_end = self.date_picker.get_range_iso()
         if sql_start:
             query += " AND `Date` >= %s"
             params.append(sql_start)

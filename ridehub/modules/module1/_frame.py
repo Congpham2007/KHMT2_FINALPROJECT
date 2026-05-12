@@ -1,15 +1,13 @@
 import math
-import tkinter as tk
 from datetime import datetime
 from tkinter import messagebox
-from tkcalendar import DateEntry
 
 import customtkinter as ctk
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-from ui.main_ui import ModernTable
+from ui.main_ui import ModernTable, DateRangePicker
 from ui.theme import UI_FONT, STATUS_COLORS, DEFAULT_COLOR
 from ._data import load_dashboard_data
 
@@ -21,8 +19,6 @@ class DashboardFrame(ctk.CTkFrame):
         self._build_header()
         self.scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
         self.scroll.pack(fill="both", expand=True, pady=(15, 0))
-        self._start_entry.set_date(datetime(2024, 4, 9))
-        self._end_entry.set_date(datetime(2024, 5, 9))
         self.generate_report()
 
     def _build_header(self):
@@ -34,64 +30,15 @@ class DashboardFrame(ctk.CTkFrame):
         right = ctk.CTkFrame(header, fg_color="transparent")
         right.pack(side="right")
 
-        # ── Shared calendar popup style ──────────────────────────
-        import tkinter.ttk as _ttk
-        _s = _ttk.Style()
-        try:
-            _s.theme_use("clam")
-        except Exception:
-            pass
-        _s.configure("DateEntry",
-                     fieldbackground="#FFFFFF",
-                     background="#FFFFFF",
-                     foreground="#111827",
-                     arrowcolor="#4F46E5",
-                     borderwidth=1,
-                     font=(UI_FONT, 11))
-
-        def _make_picker(parent, label_text):
-            outer = tk.Frame(parent, bg="#E5E7EB", bd=0, relief="flat")
-            inner = tk.Frame(outer, bg="#FFFFFF", bd=0)
-            inner.pack(padx=1, pady=1)
-
-            lbl = ctk.CTkLabel(parent, text=label_text,
-                               font=(UI_FONT, 11, "bold"), text_color="#6B7280")
-
-            entry = DateEntry(
-                inner,
-                width=13,
-                date_pattern="mm/dd/yyyy",
-                font=(UI_FONT, 11),
-                relief="flat",
-                borderwidth=0,
-                background="#4F46E5",
-                foreground="white",
-                normalbackground="#FFFFFF",
-                normalforeground="#111827",
-                weekendbackground="#FFFFFF",
-                weekendforeground="#111827",
-                othermonthbackground="#F3F4F6",
-                othermonthforeground="#9CA3AF",
-                headersbackground="#4F46E5",
-                headersforeground="#FFFFFF",
-                selectbackground="#4F46E5",
-                selectforeground="#FFFFFF",
-                showweeknumbers=False,
-                firstweekday="monday",
-            )
-            entry.pack(padx=6, pady=5, side="left")
-
-            return lbl, outer, entry
-
-        # ── From picker ───────────────────────────────────────────
-        lbl_from, box_from, self._start_entry = _make_picker(right, "From")
-        lbl_from.pack(side="left", padx=(0, 3))
-        box_from.pack(side="left", padx=(0, 18), pady=2)
-
-        # ── To picker ─────────────────────────────────────────────
-        lbl_to, box_to, self._end_entry = _make_picker(right, "To")
-        lbl_to.pack(side="left", padx=(0, 3))
-        box_to.pack(side="left", padx=(0, 18), pady=2)
+        today = datetime.now()
+        default_start = datetime(2024, 4, 9).date()
+        default_end = datetime(2024, 5, 9).date()
+        self._date_picker = DateRangePicker(
+            right,
+            default_start=default_start,
+            default_end=default_end,
+        )
+        self._date_picker.pack(side="left", padx=(0, 12), pady=2)
 
         # ── Generate button ───────────────────────────────────────
         ctk.CTkButton(right, text="🔄 Generate Report",
@@ -105,8 +52,7 @@ class DashboardFrame(ctk.CTkFrame):
             w.destroy()
         plt.close("all")
         self._canvas_refs.clear()
-        start = self._start_entry.get_date().strftime("%Y-%m-%d")
-        end = self._end_entry.get_date().strftime("%Y-%m-%d")
+        start, end = self._date_picker.get_range_iso()
         try:
             data = load_dashboard_data(start, end)
         except Exception as e:

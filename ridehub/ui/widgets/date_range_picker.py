@@ -19,15 +19,15 @@ class DateRangePicker(ctk.CTkFrame):
         # From field
         self.from_frame = ctk.CTkFrame(self, fg_color="white", border_width=1,
                                        border_color="#E2E8F0", corner_radius=8)
-        self.from_frame.pack(side="left", fill="x", expand=True)
+        self.from_frame.pack(side="left", fill="x", expand=True, ipady=2)
 
         self.cal_btn = ctk.CTkButton(
-            self.from_frame, text="📅", width=32, height=36,
+            self.from_frame, text="📅", width=28, height=28,
             fg_color="transparent", hover_color="#F1F5F9",
-            text_color="#475569", corner_radius=8,
+            text_color="#475569", corner_radius=6,
             command=self._toggle_popup
         )
-        self.cal_btn.pack(side="left", padx=(2, 0))
+        self.cal_btn.pack(side="left", padx=(4, 0))
 
         self.from_entry = ctk.CTkEntry(
             self.from_frame, font=(UI_FONT, 12), text_color="#64748B",
@@ -44,15 +44,15 @@ class DateRangePicker(ctk.CTkFrame):
         # To field
         self.to_frame = ctk.CTkFrame(self, fg_color="white", border_width=1,
                                      border_color="#E2E8F0", corner_radius=8)
-        self.to_frame.pack(side="left", fill="x", expand=True)
+        self.to_frame.pack(side="left", fill="x", expand=True, ipady=2)
 
         self.to_cal_btn = ctk.CTkButton(
-            self.to_frame, text="📅", width=32, height=36,
+            self.to_frame, text="📅", width=28, height=28,
             fg_color="transparent", hover_color="#F1F5F9",
-            text_color="#475569", corner_radius=8,
+            text_color="#475569", corner_radius=6,
             command=self._toggle_popup
         )
-        self.to_cal_btn.pack(side="left", padx=(2, 0))
+        self.to_cal_btn.pack(side="left", padx=(4, 0))
 
         self.to_entry = ctk.CTkEntry(
             self.to_frame, font=(UI_FONT, 12), text_color="#64748B",

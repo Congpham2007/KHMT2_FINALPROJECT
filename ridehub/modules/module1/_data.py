@@ -18,16 +18,17 @@ def load_dashboard_data(start_date, end_date):
         params = [start_date, end_date]
 
     prev_params, prev_filter = [], ""
-    try:
-        s = datetime.strptime(start_date, "%Y-%m-%d")
-        e = datetime.strptime(end_date, "%Y-%m-%d")
-        delta = e - s
-        pe = s - timedelta(days=1)
-        ps = pe - delta
-        prev_filter = "WHERE `Date` BETWEEN %s AND %s"
-        prev_params = [ps.strftime("%Y-%m-%d"), pe.strftime("%Y-%m-%d")]
-    except Exception:
-        pass
+    if start_date and end_date:
+        try:
+            s = datetime.strptime(start_date, "%Y-%m-%d")
+            e = datetime.strptime(end_date, "%Y-%m-%d")
+            delta = e - s
+            pe = s - timedelta(days=1)
+            ps = pe - delta
+            prev_filter = "WHERE `Date` BETWEEN %s AND %s"
+            prev_params = [ps.strftime("%Y-%m-%d"), pe.strftime("%Y-%m-%d")]
+        except Exception:
+            pass
 
     cursor.execute(
         f"SELECT COUNT(*) as total, SUM(`Booking Value`) as revenue, "
