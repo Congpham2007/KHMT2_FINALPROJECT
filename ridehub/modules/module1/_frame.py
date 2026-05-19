@@ -31,8 +31,8 @@ class DashboardFrame(ctk.CTkFrame):
         right.pack(side="right")
 
         today = datetime.now()
-        default_start = datetime(2024, 4, 9).date()
-        default_end = datetime(2024, 5, 9).date()
+        default_start = datetime(2024, 3, 1).date()
+        default_end = datetime(2024, 4, 1).date()
         self._date_picker = DateRangePicker(
             right,
             default_start=default_start,
@@ -75,9 +75,9 @@ class DashboardFrame(ctk.CTkFrame):
         pct_rev = self._pct(data["revenue"], data["prev_revenue"])
         cards = [
             ("🚗 Total Rides", f"{data['total']:,}",
-             f"{pct_rides:+.1f}% vs last period", "#3B82F6"),
+             f"{pct_rides:+.1f}% vs last month", "#3B82F6"),
             ("💰 Total Revenue", f"${data['revenue']:,.0f}",
-             f"{pct_rev:+.1f}% vs last period", "#10B981"),
+             f"{pct_rev:+.1f}% vs last month", "#10B981"),
             ("✅ Completion Rate", f"{data['completion_rate']:.1f}%",
              "of all rides", "#8B5CF6"),
             ("⭐ Avg Driver Rating", f"{data['avg_rate']:.2f}",

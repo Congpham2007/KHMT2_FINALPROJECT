@@ -15,6 +15,10 @@ class RideManagementFrame(_StoryMixin, _AnalyticsMixin, ctk.CTkFrame):
 
         self.total_db_rows = 0
         self.stats = {"cho_lau": 0, "vip": 0, "su_co": 0, "vtat_cao": 0}
+        self.current_page = 0
+        self.page_size = 100
+        self.sort_col = None
+        self.sort_reverse = False
 
         self.fetch_database_stats()
 
@@ -60,23 +64,9 @@ class RideManagementFrame(_StoryMixin, _AnalyticsMixin, ctk.CTkFrame):
             conn.close()
 
     def _init_dates(self):
-        """Load date range from DB for the picker defaults (like module 4)."""
-        conn = get_db_connection()
-        if not conn:
-            return
-        try:
-            cur = conn.cursor()
-            cur.execute("SELECT MIN(`Date`), MAX(`Date`) FROM rides")
-            min_date, max_date = cur.fetchone()
-            if min_date and max_date:
-                min_dt = datetime.datetime.strptime(str(min_date), "%Y-%m-%d")
-                max_dt = datetime.datetime.strptime(str(max_date), "%Y-%m-%d")
-                if hasattr(self, "date_picker") and self.date_picker:
-                    self.date_picker.set_range(min_dt.date(), max_dt.date())
-        except Exception:
-            pass
-        finally:
-            conn.close()
+        """Hardcode default dates."""
+        if hasattr(self, "date_picker") and self.date_picker:
+            self.date_picker.set_range(datetime.date(2024, 3, 1), datetime.date(2024, 4, 1))
 
     # ==========================================
     # HEADER
@@ -146,9 +136,8 @@ class RideManagementFrame(_StoryMixin, _AnalyticsMixin, ctk.CTkFrame):
             fg_color="white", text_color="black", state="readonly"
         ).pack(side="left", padx=5)
 
-        today = datetime.datetime.now()
-        default_start = (today - datetime.timedelta(days=30)).date()
-        default_end = today.date()
+        default_start = datetime.date(2024, 3, 1)
+        default_end = datetime.date(2024, 4, 1)
         self.date_picker = DateRangePicker(
             filter_frame,
             default_start=default_start,
@@ -250,8 +239,17 @@ class RideManagementFrame(_StoryMixin, _AnalyticsMixin, ctk.CTkFrame):
         self.f1_load_data()
 
     # ==========================================
-    # TABLE
+    # TABLE & PAGINATION
     # ==========================================
+    def _prev_page(self):
+        if self.current_page > 0:
+            self.current_page -= 1
+            self.f1_load_data()
+
+    def _next_page(self):
+        self.current_page += 1
+        self.f1_load_data()
+
     def setup_f1_table(self):
         table_container = ctk.CTkFrame(
             self, fg_color="white", corner_radius=12,
@@ -295,7 +293,10 @@ class RideManagementFrame(_StoryMixin, _AnalyticsMixin, ctk.CTkFrame):
             "Status": 120, "STORY": 60,
         }
         for col, w in columns_width.items():
-            self.table.heading(col, text=col.upper())
+            if col in ("Booking ID", "Date / Time", "Price"):
+                self.table.heading(col, text=col.upper(), command=lambda c=col: self._sort_treeview(c, False))
+            else:
+                self.table.heading(col, text=col.upper())
             self.table.column(
                 col, width=w,
                 anchor="center" if col not in ("ROUTE", "Date / Time", "Booking ID") else "w"
@@ -303,6 +304,32 @@ class RideManagementFrame(_StoryMixin, _AnalyticsMixin, ctk.CTkFrame):
 
         self.table.pack(fill="both", expand=True, padx=2, pady=2)
         self.table.bind("<ButtonRelease-1>", self.on_table_click)
+
+        self.pagination_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.pagination_frame.pack(fill="x", padx=10, pady=(5, 10))
+        
+        self.prev_btn = ctk.CTkButton(self.pagination_frame, text="< Prev", width=60, command=self._prev_page, fg_color="#F3F4F6", text_color="#111827", hover_color="#E5E7EB")
+        self.prev_btn.pack(side="left")
+        
+        self.page_label = ctk.CTkLabel(self.pagination_frame, text="Page 1", text_color="#4B5563")
+        self.page_label.pack(side="left", padx=15)
+        
+        self.next_btn = ctk.CTkButton(self.pagination_frame, text="Next >", width=60, command=self._next_page, fg_color="#F3F4F6", text_color="#111827", hover_color="#E5E7EB")
+        self.next_btn.pack(side="left")
+
+    def _sort_treeview(self, col, reverse):
+        self.sort_col = col
+        self.sort_reverse = reverse
+        self.current_page = 0
+        self.f1_load_data()
+        
+        # Reset all sortable headers
+        for c in ("Booking ID", "Date / Time", "Price"):
+            self.table.heading(c, text=c.upper(), command=lambda col_name=c: self._sort_treeview(col_name, False))
+
+        # Update active header with arrow
+        arrow = " ▼" if reverse else " ▲"
+        self.table.heading(col, text=col.upper() + arrow, command=lambda: self._sort_treeview(col, not reverse))
 
     def on_table_click(self, event):
         region = self.table.identify_region(event.x, event.y)
@@ -418,16 +445,47 @@ class RideManagementFrame(_StoryMixin, _AnalyticsMixin, ctk.CTkFrame):
         elif active_tag == "High VTAT":
             query += " AND `Avg VTAT` > 15"
 
-        query += " LIMIT 100"
+        # Count total matching rows
+        count_query = query.replace("SELECT *", "SELECT COUNT(*)")
+        try:
+            cursor.execute(count_query, params)
+            total_filtered = cursor.fetchone()["COUNT(*)"]
+        except Exception:
+            total_filtered = 0
+
+        # Sorting
+        if getattr(self, "sort_col", None):
+            order_dir = "DESC" if self.sort_reverse else "ASC"
+            col_map = {
+                "Booking ID": "`Booking ID`",
+                "Date / Time": "`Date` " + order_dir + ", `Time`",
+                "Price": "CAST(REPLACE(REPLACE(`Booking Value`, '$', ''), ',', '') AS UNSIGNED)"
+            }
+            if self.sort_col in col_map:
+                query += f" ORDER BY {col_map[self.sort_col]} {order_dir}"
+        else:
+            query += " ORDER BY `Date` DESC, `Time` DESC"
+
+        # Pagination
+        offset = self.current_page * self.page_size
+        query += f" LIMIT {self.page_size} OFFSET {offset}"
 
         try:
             cursor.execute(query, params)
             rows = cursor.fetchall()
 
             shown_count = len(rows)
+            start_num = offset + 1 if shown_count > 0 else 0
+            end_num = offset + shown_count
+
             self.badge_label.configure(
-                text=f"{shown_count:,} rides shown  {self.total_db_rows:,} total"
+                text=f"Showing {start_num}-{end_num} of {total_filtered:,} rides"
             )
+
+            # Update pagination UI
+            self.page_label.configure(text=f"Page {self.current_page + 1}")
+            self.prev_btn.configure(state="normal" if self.current_page > 0 else "disabled")
+            self.next_btn.configure(state="normal" if end_num < total_filtered else "disabled")
 
             for row in rows:
                 # Date / Time

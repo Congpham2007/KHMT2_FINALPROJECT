@@ -17,14 +17,15 @@ class App(ctk.CTk):
         self.title("RideHub Admin — Enterprise Edition")
         self.configure(fg_color="#F3F4F6")
         self.geometry(self._center_window(1280, 800))
+        self.after(200, lambda: self.state("zoomed"))
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
 
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         # ── Sidebar ──
-        self.sidebar = ctk.CTkFrame(self, width=240, fg_color="#FFFFFF", corner_radius=0,
-                                    border_width=1, border_color="#E5E7EB")
+        self.sidebar = ctk.CTkFrame(self, width=240, fg_color="#111827", corner_radius=0,
+                                    border_width=0)
         self.sidebar.grid(row=0, column=0, sticky="nsew")
         self.sidebar.grid_rowconfigure(8, weight=1)
 
@@ -32,7 +33,7 @@ class App(ctk.CTk):
         logo.grid(row=0, column=0, pady=(25, 30), padx=20, sticky="w")
         ctk.CTkLabel(logo, text="🚕", font=(UI_FONT, 28)).pack(side="left")
         ctk.CTkLabel(logo, text=" RideHub", font=(UI_FONT, 22, "bold"),
-                     text_color="#111827").pack(side="left", padx=5)
+                     text_color="#FFFFFF").pack(side="left", padx=5)
 
         self.nav_btns = {}
         nav_items = [
@@ -52,14 +53,14 @@ class App(ctk.CTk):
             icon_box.grid(row=0, column=0, padx=(2, 0))
             icon_box.grid_propagate(False)
             ctk.CTkLabel(icon_box, text=icon, font=(UI_FONT, icon_size),
-                         text_color="#6B7280").place(relx=0.5, rely=0.5,
+                         text_color="#9CA3AF").place(relx=0.5, rely=0.5,
                                                      anchor="center")
 
             btn = ctk.CTkButton(
                 row_f, text=text, anchor="w",
-                fg_color="transparent", text_color="#6B7280",
+                fg_color="transparent", text_color="#9CA3AF",
                 font=(UI_FONT, 14, "bold"), height=40, corner_radius=10,
-                hover_color="#F9FAFB", command=lambda k=key: self.show_frame(k)
+                hover_color="#1F2937", command=lambda k=key: self.show_frame(k)
             )
             btn.grid(row=0, column=1, sticky="ew")
             self.nav_btns[key] = btn
@@ -76,7 +77,6 @@ class App(ctk.CTk):
         topbar.grid(row=0, column=0, sticky="ew")
         uf = ctk.CTkFrame(topbar, fg_color="transparent")
         uf.pack(side="right", padx=30, pady=15)
-        ctk.CTkLabel(uf, text="🔔", font=(UI_FONT, 18), text_color="#6B7280").pack(side="left", padx=15)
 
         if self.current_user:
             display_name = self.current_user.get("full_name", "Admin System")
@@ -175,9 +175,9 @@ class App(ctk.CTk):
     def show_frame(self, key):
         for k, btn in self.nav_btns.items():
             if k == key:
-                btn.configure(fg_color="#EEF2FF", text_color="#4F46E5", hover=False)
+                btn.configure(fg_color="#4F46E5", text_color="#FFFFFF", hover=False)
             else:
-                btn.configure(fg_color="transparent", text_color="#6B7280", hover_color="#F9FAFB")
+                btn.configure(fg_color="transparent", text_color="#9CA3AF", hover_color="#1F2937")
         for frame in self.frames.values():
             frame.grid_forget()
         if key in self.frames:

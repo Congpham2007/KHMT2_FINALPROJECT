@@ -61,7 +61,6 @@ class RiskRenderingMixin:
     def _render_kpis(self, kpis):
         current, previous = kpis
         total = int(current.get("total") or 0)
-        kpi_targets = [2000, 1000, 500, 95.0]
         cards = [
             ("Customer Cancelled Rides",
              current.get("customer_cancelled") or 0,
@@ -85,10 +84,13 @@ class RiskRenderingMixin:
              "#34D399", COLORS["green_bg"], COLORS["green"], COLORS["green"],
              "ti-circle-check"),
         ]
-        for i, (card_data, target) in enumerate(zip(cards, kpi_targets)):
+        for i, card_data in enumerate(cards):
             raw_val = card_data[1]
-            pct_val = min(100.0, (safe_float(raw_val) / target) * 100
-                          if target > 0 else 0)
+            title = card_data[0]
+            if "Completion Rate" in title:
+                pct_val = min(100.0, max(0.0, safe_float(raw_val)))
+            else:
+                pct_val = (safe_float(raw_val) / total * 100) if total > 0 else 0.0
             self._kpi_card(i, card_data, total, pct_val)
 
     def _kpi_card(self, col, data, total, progress=0):
@@ -96,8 +98,14 @@ class RiskRenderingMixin:
         delta = pct_delta(value, old_value)
         warning = ((title != "Ride Completion Rate" and delta > 15)
                    or (title == "Ride Completion Rate" and delta < -3))
-        status_color = (COLORS["red"] if warning
-                        else (COLORS["orange"] if abs(delta) > 7 else COLORS["green"]))
+
+        if "Completion" in title:
+            status_color = COLORS["green"] if delta >= 0 else COLORS["red"]
+            bg_color = COLORS["green_bg"] if delta >= 0 else COLORS["red_bg"]
+        else:
+            status_color = COLORS["red"] if delta > 0 else COLORS["green"]
+            bg_color = COLORS["red_bg"] if delta > 0 else COLORS["green_bg"]
+
         card = make_card(self.kpi_frame, height=185, border_width=2, border_color=border)
         card.grid(row=0, column=col, sticky="ew", padx=7)
         card.grid_propagate(False)
@@ -108,7 +116,7 @@ class RiskRenderingMixin:
                      font=font(18, "bold")).place(x=18, y=16)
         if "Completion Rate" not in title:
             ctk.CTkLabel(card, text=f"{delta:+.1f}%", font=font(11, "bold"),
-                         fg_color=COLORS["red_bg"] if warning else COLORS["green_bg"],
+                         fg_color=bg_color,
                          text_color=status_color, corner_radius=20, padx=9, pady=3).place(
                 relx=0.95, y=17, anchor="ne")
         display = f"{value:.1f}%" if "Rate" in title else f"{int(value):,}"
@@ -117,12 +125,12 @@ class RiskRenderingMixin:
         ctk.CTkLabel(card, text=title.upper(), font=font(10, "bold"),
                      text_color=COLORS["muted_light"], wraplength=190,
                      justify="left").place(x=18, y=88)
-        ctk.CTkLabel(card, text=f"vs previous period | total {total:,}",
+        ctk.CTkLabel(card, text=f"vs previous month | total {total:,}",
                      font=font(11), text_color="#CCCCCC", wraplength=190,
                      justify="left").place(x=18, y=120)
 
         if "Completion Rate" not in title:
-            ctk.CTkLabel(card, text=f"{progress:.1f}% toward target", font=font(9),
+            ctk.CTkLabel(card, text=f"{progress:.1f}% of total rides", font=font(9),
                          text_color=COLORS["muted"]).place(x=22, y=145)
         bar_y = 165
 
@@ -332,7 +340,7 @@ class RiskRenderingMixin:
         fig, ax = self._figure(9.5, max(3.8, len(labels) * 0.35))
 
         ax.set_axisbelow(True)
-        ax.grid(axis='x', color="#94A3B8", linestyle='-', alpha=0.9, linewidth=1.5)
+        # ax.grid(axis='x', color="#94A3B8", linestyle='-', alpha=0.9, linewidth=1.5)
 
         bars = ax.barh(y, rates, color=colors, alpha=0.92, height=0.58,
                        edgecolor="white", linewidth=1)

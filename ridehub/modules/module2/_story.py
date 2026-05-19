@@ -99,18 +99,18 @@ class _StoryMixin:
                 "title": "Booking Confirmed",
                 "desc": (f"Via app  Payment: {row.get('Payment Method', 'N/A')}  "
                         f"Time: {time_str}"),
-                "icon": "", "color": "#10b981"
+                "icon": "✓", "color": "#10b981"
             },
             {
                 "title": "Driver Assigned",
                 "desc": (f"Driver ID: {str(row.get('Customer ID', ''))}  "
                         f"Vehicle: {row.get('Vehicle Type', '')}"),
-                "icon": "", "color": "#3b82f6"
+                "icon": "🚗", "color": "#3b82f6"
             },
             {
                 "title": f"Wait Time  VTAT: {int(vtat_val)} min",
                 "desc": "Driver is approaching pickup point.",
-                "icon": "",
+                "icon": "⏳",
                 "color": "#f59e0b" if vtat_val > 8 else "#3b82f6"
             },
             {
@@ -118,7 +118,7 @@ class _StoryMixin:
                 "desc": (f"{row.get('Pickup Location', '')}  "
                         f"{row.get('Drop Location', '')} "
                         f"({row.get('Ride Distance', 0)} km)"),
-                "icon": "", "color": "#6366f1"
+                "icon": "📍", "color": "#6366f1"
             },
         ]
 
@@ -128,13 +128,13 @@ class _StoryMixin:
                 "desc": (f"Completed {row.get('Ride Distance', 0)}km  "
                         f"Price: ${int(price_val)}  "
                         f"Rating: {row.get('Customer Rating', 0)}"),
-                "icon": "", "color": "#10b981"
+                "icon": "✓", "color": "#10b981"
             })
         else:
             steps.append({
                 "title": "Trip Interrupted",
                 "desc": f"Status: {status_raw}  Distance: {row.get('Ride Distance', 0)}km",
-                "icon": "", "color": "#ef4444"
+                "icon": "✕", "color": "#ef4444"
             })
 
         for i, step in enumerate(steps):

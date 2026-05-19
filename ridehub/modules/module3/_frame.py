@@ -27,12 +27,11 @@ class UserProfileFrame(ctk.CTkFrame):
         search_frame = ctk.CTkFrame(top_controls, fg_color="#F3F4F6",
                                     corner_radius=8, height=35)
         search_frame.pack(side="right", fill="x", expand=True, padx=(20, 0))
-        self.search_var = ctk.StringVar()
-        self.search_entry = ctk.CTkEntry(search_frame, placeholder_text="Enter ID...",
-                                         height=35, textvariable=self.search_var,
+        self.search_entry = ctk.CTkEntry(search_frame, placeholder_text="Search Booking ID...",
+                                         height=35,
                                          fg_color="transparent", border_width=0,
                                          text_color="#111827",
-                                         placeholder_text_color="#9CA3AF")
+                                         placeholder_text_color="#6B7280")
         self.search_entry.pack(fill="x", padx=10)
         self.search_entry.bind("<KeyRelease>", lambda e: self.reset_and_refresh())
 
@@ -134,7 +133,7 @@ class UserProfileFrame(ctk.CTkFrame):
         self.rating_filter.set("All Ratings")
         self.trip_filter.set("All Trips")
         self.risk_filter.set("All Statuses")
-        self.search_var.set("")
+        self.search_entry.delete(0, "end")
         self.reset_and_refresh()
 
     def reset_and_refresh(self, *args):
@@ -184,9 +183,9 @@ class UserProfileFrame(ctk.CTkFrame):
             f"`{id_col}` NOT IN ('', 'None', 'NaN', '0', 'Unassigned')",
         ]
         params = []
-        if self.search_var.get().strip():
+        if self.search_entry.get().strip():
             where_clauses.append(f"`{id_col}` LIKE %s")
-            params.append(f"%{self.search_var.get().strip()}%")
+            params.append(f"%{self.search_entry.get().strip()}%")
         if "Flagged" in self.risk_filter.get():
             where_clauses.append(f"`{id_col}` IN (SELECT uid FROM flagged_users)")
 
@@ -403,7 +402,7 @@ class UserProfileFrame(ctk.CTkFrame):
                               f"{stats['total_trips']}", "🚗", 0)
         self.create_stat_card(stats_frame,
                               "Total Spent" if user_type == "Customers" else "Revenue",
-                              f"₹{stats['total_val'] or 0:,.0f}", "💰", 1)
+                              f"${stats['total_val'] or 0:,.0f}", "💰", 1)
         self.create_stat_card(stats_frame, "Avg Rating",
                               f"{stats['avg_rate']:.1f} ⭐" if stats['avg_rate']
                               else "N/A", "⭐", 2)
@@ -444,7 +443,7 @@ class UserProfileFrame(ctk.CTkFrame):
             r_str = f"{trip['trip_rating']} ⭐" if trip['trip_rating'] else "N/A"
             table.insert("", "end", values=(
                 trip['Booking ID'], trip['Date'],
-                f"₹{trip['Booking Value']}", trip['Booking Status'], r_str))
+                f"${trip['Booking Value']}", trip['Booking Status'], r_str))
 
     def create_stat_card(self, parent, title, val, icon, col, is_danger=False):
         card = ctk.CTkFrame(parent, fg_color="#FFFFFF", corner_radius=12,

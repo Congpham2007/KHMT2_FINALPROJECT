@@ -13,6 +13,7 @@ class DateRangePicker(ctk.CTkFrame):
         self._popup = None
         self._sel_start = default_start
         self._sel_end = default_end
+        self._active_field = "start"
         self._view_year = (default_start or date.today()).year
         self._view_month = (default_start or date.today()).month
 
@@ -25,7 +26,7 @@ class DateRangePicker(ctk.CTkFrame):
             self.from_frame, text="📅", width=28, height=28,
             fg_color="transparent", hover_color="#F1F5F9",
             text_color="#475569", corner_radius=6,
-            command=self._toggle_popup
+            command=lambda: self._toggle_popup("start")
         )
         self.cal_btn.pack(side="left", padx=(4, 0))
 
@@ -50,7 +51,7 @@ class DateRangePicker(ctk.CTkFrame):
             self.to_frame, text="📅", width=28, height=28,
             fg_color="transparent", hover_color="#F1F5F9",
             text_color="#475569", corner_radius=6,
-            command=self._toggle_popup
+            command=lambda: self._toggle_popup("end")
         )
         self.to_cal_btn.pack(side="left", padx=(4, 0))
 
@@ -64,11 +65,14 @@ class DateRangePicker(ctk.CTkFrame):
 
         self._update_display()
 
-    def _toggle_popup(self):
-        if self._popup and self._popup.winfo_exists():
+    def _toggle_popup(self, field):
+        if self._popup and self._popup.winfo_exists() and self._active_field == field:
             self._popup.destroy()
             self._popup = None
         else:
+            if self._popup and self._popup.winfo_exists():
+                self._popup.destroy()
+            self._active_field = field
             self._show_popup()
 
     def _show_popup(self):
@@ -77,11 +81,14 @@ class DateRangePicker(ctk.CTkFrame):
         self._popup.attributes("-topmost", True)
         self._popup.configure(fg_color="white")
         self._popup.update_idletasks()
-        x = self.winfo_rootx()
-        y = self.winfo_rooty() + self.winfo_height() + 2
+        
+        target_widget = self.from_frame if self._active_field == "start" else self.to_frame
+        x = target_widget.winfo_rootx()
+        y = target_widget.winfo_rooty() + target_widget.winfo_height() + 2
         self._popup.geometry(f"300x320+{x}+{y}")
 
-        ref = self._sel_start or self._sel_end or date.today()
+        ref = self.start_date if self._active_field == "start" else self.end_date
+        if not ref: ref = date.today()
         self._view_year = ref.year
         self._view_month = ref.month
         self._build_calendar()
@@ -92,14 +99,30 @@ class DateRangePicker(ctk.CTkFrame):
 
         nav = ctk.CTkFrame(self._popup, fg_color="transparent")
         nav.pack(fill="x", padx=10, pady=(10, 4))
-        ctk.CTkButton(nav, text="◀", width=28, height=28, fg_color="transparent",
+        
+        # Month navigation
+        nav_month = ctk.CTkFrame(nav, fg_color="transparent")
+        nav_month.pack(side="left")
+        ctk.CTkButton(nav_month, text="◀", width=20, height=28, fg_color="transparent",
                       text_color="#475569", hover_color="#F1F5F9", corner_radius=6,
                       command=self._prev_month).pack(side="left")
-        ctk.CTkLabel(nav, text=f"{calendar.month_name[self._view_month]} {self._view_year}",
-                     font=(UI_FONT, 13, "bold"), text_color="#1E293B").pack(side="left", expand=True)
-        ctk.CTkButton(nav, text="▶", width=28, height=28, fg_color="transparent",
+        ctk.CTkLabel(nav_month, text=f"{calendar.month_name[self._view_month]}",
+                     font=(UI_FONT, 13, "bold"), text_color="#1E293B", width=60).pack(side="left")
+        ctk.CTkButton(nav_month, text="▶", width=20, height=28, fg_color="transparent",
                       text_color="#475569", hover_color="#F1F5F9", corner_radius=6,
-                      command=self._next_month).pack(side="right")
+                      command=self._next_month).pack(side="left")
+
+        # Year navigation
+        nav_year = ctk.CTkFrame(nav, fg_color="transparent")
+        nav_year.pack(side="right")
+        ctk.CTkButton(nav_year, text="◀", width=20, height=28, fg_color="transparent",
+                      text_color="#475569", hover_color="#F1F5F9", corner_radius=6,
+                      command=self._prev_year).pack(side="left")
+        ctk.CTkLabel(nav_year, text=f"{self._view_year}",
+                     font=(UI_FONT, 13, "bold"), text_color="#1E293B", width=40).pack(side="left")
+        ctk.CTkButton(nav_year, text="▶", width=20, height=28, fg_color="transparent",
+                      text_color="#475569", hover_color="#F1F5F9", corner_radius=6,
+                      command=self._next_year).pack(side="left")
 
         days_frame = ctk.CTkFrame(self._popup, fg_color="transparent")
         days_frame.pack(fill="x", padx=10, pady=(4, 0))
@@ -150,19 +173,28 @@ class DateRangePicker(ctk.CTkFrame):
                       corner_radius=6, command=self._apply_selection).pack(side="right")
 
     def _select_date(self, d):
-        if not self._sel_start or (self._sel_start and self._sel_end):
+        if self._active_field == "start":
             self._sel_start = d
-            self._sel_end = None
+            self.start_date = d
+            if self.end_date and self.start_date > self.end_date:
+                self._sel_end = self.end_date = self.start_date
         else:
-            if d < self._sel_start:
-                self._sel_start = d
-            else:
-                self._sel_end = d
-        self._build_calendar()
+            self._sel_end = d
+            self.end_date = d
+            if self.start_date and self.end_date < self.start_date:
+                self._sel_start = self.start_date = self.end_date
+                
+        self._update_display()
+        if self._popup:
+            self._popup.destroy()
+            self._popup = None
+            
+        if self.on_change:
+            self.on_change(self.start_date, self.end_date)
 
-    def _apply_selection(self):
-        self.start_date = self._sel_start
-        self.end_date = self._sel_end
+    def _clear_dates(self):
+        self._sel_start = self.start_date = date(2024, 1, 1)
+        self._sel_end = self.end_date = date(2024, 12, 31)
         self._update_display()
         if self._popup:
             self._popup.destroy()
@@ -170,12 +202,12 @@ class DateRangePicker(ctk.CTkFrame):
         if self.on_change:
             self.on_change(self.start_date, self.end_date)
 
-    def _clear_dates(self):
-        self._sel_start = self._sel_end = self.start_date = self.end_date = None
-        self._update_display()
-        self._build_calendar()
+    def _apply_selection(self):
+        if self._popup:
+            self._popup.destroy()
+            self._popup = None
         if self.on_change:
-            self.on_change(None, None)
+            self.on_change(self.start_date, self.end_date)
 
     def _prev_month(self):
         self._view_month = 12 if self._view_month == 1 else self._view_month - 1
@@ -187,6 +219,14 @@ class DateRangePicker(ctk.CTkFrame):
         self._view_year += 1 if self._view_month == 1 else 0
         self._build_calendar()
 
+    def _prev_year(self):
+        self._view_year -= 1
+        self._build_calendar()
+
+    def _next_year(self):
+        self._view_year += 1
+        self._build_calendar()
+
     def _parse_date(self, raw):
         raw = raw.strip()
         if not raw:
@@ -194,36 +234,44 @@ class DateRangePicker(ctk.CTkFrame):
         parts_d = raw.split("/")
         if len(parts_d) != 3:
             return None
-        day = parts_d[0].zfill(2)
-        month = parts_d[1].zfill(2)
+        month = parts_d[0].zfill(2)
+        day = parts_d[1].zfill(2)
         year = parts_d[2]
         if len(year) == 4:
             year = year[2:]
         elif len(year) == 1:
             year = "0" + year
-        normalized = f"{day}/{month}/{year}"
+        normalized = f"{month}/{day}/{year}"
         try:
-            return datetime.strptime(normalized, "%d/%m/%y").date()
+            return datetime.strptime(normalized, "%m/%d/%y").date()
         except ValueError:
             return None
 
     def _on_entry_commit(self, field):
-        if field == "start":
-            text = self.from_entry.get().strip()
-        else:
-            text = self.to_entry.get().strip()
+        text = self.from_entry.get().strip() if field == "start" else self.to_entry.get().strip()
+        
         if not text:
+            if field == "start":
+                self._sel_start = self.start_date = None
+            else:
+                self._sel_end = self.end_date = None
+            self._update_display()
             return
+
         new_date = self._parse_date(text)
         if new_date is None:
             self._update_display()
             return
+            
         if field == "start":
-            self._sel_start = new_date
-            self.start_date = new_date
+            self._sel_start = self.start_date = new_date
+            if self.end_date and self.start_date > self.end_date:
+                self._sel_end = self.end_date = self.start_date
         else:
-            self._sel_end = new_date
-            self.end_date = new_date
+            self._sel_end = self.end_date = new_date
+            if self.start_date and self.end_date < self.start_date:
+                self._sel_start = self.start_date = self.end_date
+                
         self._update_display()
         if self.on_change:
             self.on_change(self.start_date, self.end_date)
@@ -232,9 +280,9 @@ class DateRangePicker(ctk.CTkFrame):
         self.from_entry.delete(0, "end")
         self.to_entry.delete(0, "end")
         if self.start_date:
-            self.from_entry.insert(0, self.start_date.strftime("%d/%m/%y"))
+            self.from_entry.insert(0, self.start_date.strftime("%m/%d/%y"))
         if self.end_date:
-            self.to_entry.insert(0, self.end_date.strftime("%d/%m/%y"))
+            self.to_entry.insert(0, self.end_date.strftime("%m/%d/%y"))
 
     def set_range(self, start, end):
         self.start_date = self.end_date = None
@@ -245,6 +293,11 @@ class DateRangePicker(ctk.CTkFrame):
         self._update_display()
 
     def get_range_iso(self):
-        if self.start_date and self.end_date:
-            return self.start_date.strftime("%Y-%m-%d"), self.end_date.strftime("%Y-%m-%d")
-        return None, None
+        self._on_entry_commit("start")
+        self._on_entry_commit("end")
+        
+        if not self.start_date or not self.end_date:
+            self._sel_start = self.start_date = date(2024, 1, 1)
+            self._sel_end = self.end_date = date(2024, 12, 31)
+            self._update_display()
+        return self.start_date.strftime("%Y-%m-%d"), self.end_date.strftime("%Y-%m-%d")

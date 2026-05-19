@@ -42,9 +42,8 @@ class RiskAnalysisFrame(RiskQueriesMixin, RiskRenderingMixin, ctk.CTkFrame):
         super().destroy()
 
     def _init_vars(self):
-        today = datetime.now()
-        self.default_start = (today - timedelta(days=30)).strftime("%Y-%m-%d")
-        self.default_end = today.strftime("%Y-%m-%d")
+        self.default_start = "2024-03-01"
+        self.default_end = "2024-04-01"
         self.date_picker = None
         self.region_var = ctk.StringVar(value="All")
         self.service_var = ctk.StringVar(value="All")
@@ -149,7 +148,7 @@ class RiskAnalysisFrame(RiskQueriesMixin, RiskRenderingMixin, ctk.CTkFrame):
         peak.grid(row=1, column=6, sticky="w", padx=6, pady=(2, 0))
 
         actions = ctk.CTkFrame(grid, fg_color="transparent")
-        actions.grid(row=0, column=7, rowspan=2, sticky="e", padx=(8, 0))
+        actions.grid(row=1, column=7, sticky="e", padx=(8, 0))
         ctk.CTkButton(actions, text="Apply", width=86, height=34,
                       fg_color=COLORS["primary"],
                       hover_color=COLORS["primary_dark"],
@@ -183,15 +182,8 @@ class RiskAnalysisFrame(RiskQueriesMixin, RiskRenderingMixin, ctk.CTkFrame):
             return
         try:
             cur = conn.cursor()
-            cur.execute("SELECT MIN(`Date`), MAX(`Date`) FROM rides")
-            min_date, max_date = cur.fetchone()
-            if min_date and max_date:
-                max_dt = datetime.strptime(str(max_date), "%Y-%m-%d")
-                min_dt = datetime.strptime(str(min_date), "%Y-%m-%d")
-                self.default_start = min_dt.strftime("%Y-%m-%d")
-                self.default_end = max_dt.strftime("%Y-%m-%d")
-                if self.date_picker:
-                    self.date_picker.set_range(min_dt.date(), max_dt.date())
+            # Disabled DB date overriding to keep the 2024-03-01 to 2024-04-01 default
+            pass
             cur.execute("""
                 SELECT city FROM (
                     SELECT DISTINCT `Pickup Location` city FROM rides
