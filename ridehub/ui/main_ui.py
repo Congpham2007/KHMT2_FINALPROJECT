@@ -41,6 +41,7 @@ class App(ctk.CTk):
             ("🚕", "Ride Management",  "Rides",    20),
             ("👤", "User Profiles",    "Users",    18),
             ("📈", "Risk Analysis",    "Risk",     18),
+            ("🤖", "RideGuard AI",     "AI",       18),
             ("⚙️", "Settings",         "Settings", 18),
         ]
         for i, (icon, text, key, icon_size) in enumerate(nav_items, start=1):

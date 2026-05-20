@@ -9,7 +9,7 @@ DB_CONFIG = {
     "host": "localhost",
     "user": "root",
     "password": "Tuan23321@",
-    "database": "qlud"
+    "database": "qlud",
 }
 
 # Resolve CSV path relative to this file's location

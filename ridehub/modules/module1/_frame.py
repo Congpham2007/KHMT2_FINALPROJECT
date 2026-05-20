@@ -58,11 +58,54 @@ class DashboardFrame(ctk.CTkFrame):
         except Exception as e:
             messagebox.showerror("Data Load Error", str(e))
             return
+        
         self._build_kpi_section(self.scroll, data)
         self._build_charts_row1(self.scroll, data)
         self._build_charts_row2(self.scroll, data)
         self._build_top_vehicles(self.scroll, data)
         self._build_daily_table(self.scroll, data)
+
+    def _build_mini_chart(self, parent, trend_data, threshold=None,
+                          line_color="#EF4444", bg="#FFF5F5"):
+        """Embed a compact matplotlib sparkline trend chart."""
+        import matplotlib.dates as mdates
+        dates, values = [], []
+        for d_str, v in trend_data:
+            try:
+                dates.append(datetime.strptime(str(d_str), "%Y-%m-%d"))
+                values.append(float(v))
+            except Exception:
+                pass
+        if len(dates) < 2:
+            return
+
+        fig, ax = plt.subplots(figsize=(3.0, 1.5))
+        fig.patch.set_facecolor(bg)
+        ax.set_facecolor(bg)
+
+        ax.plot(dates, values, color=line_color, linewidth=2, zorder=3)
+        base = min(values) * 0.97 if min(values) > 0 else 0
+        ax.fill_between(dates, base, values, alpha=0.15, color=line_color)
+
+        if threshold is not None:
+            ax.axhline(y=threshold, color="#9CA3AF", linewidth=1.2,
+                       linestyle="--", zorder=2)
+
+        ax.set_xlim(dates[0], dates[-1])
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m"))
+        ax.tick_params(axis="both", labelsize=6, length=2, pad=2)
+        ax.yaxis.set_major_locator(plt.MaxNLocator(3, integer=False))
+        for sp in ax.spines.values():
+            sp.set_visible(False)
+        ax.grid(axis="y", linestyle=":", alpha=0.4, color="#D1D5DB")
+
+        plt.tight_layout(pad=0.4)
+        canvas = FigureCanvasTkAgg(fig, master=parent)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill="x", pady=(2, 0))
+        self._canvas_refs.append(fig)
+
+
 
     @staticmethod
     def _pct(current, previous):

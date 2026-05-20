@@ -13,6 +13,7 @@ def launch_app(user):
     from modules.module2 import RideManagementFrame
     from modules.module3 import UserProfileFrame
     from modules.module4 import RiskAnalysisFrame
+    from modules.module5 import AIChatbotFrame
     from modules.settings import SettingsFrame
 
     frames_config = {
@@ -20,6 +21,7 @@ def launch_app(user):
         "Rides":     RideManagementFrame,
         "Users":     UserProfileFrame,
         "Risk":      RiskAnalysisFrame,
+        "AI":        AIChatbotFrame,
         "Settings":  SettingsFrame,
     }
 
